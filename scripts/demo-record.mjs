@@ -7,6 +7,7 @@ const baseUrl = `http://127.0.0.1:${port}`;
 const headless = process.env.DEMO_HEADLESS === "1";
 const keepOpen = process.env.DEMO_KEEP_OPEN === "1" && process.env.DEMO_EXIT_ON_FINISH !== "1";
 const pace = Number.parseFloat(process.env.DEMO_PACE ?? "1");
+const soundEnabled = process.env.DEMO_SOUND !== "0" && !headless;
 const windowPlacement = headless ? null : resolveWindowPlacement();
 const server = spawn(process.execPath, ["dist-server/server/index.js"], {
   cwd: process.cwd(),
@@ -44,11 +45,13 @@ await page.goto(baseUrl, { waitUntil: "domcontentloaded" });
 const pilotThread = page.getByRole("button", { name: /Pilot inbox: launch checklist/ });
 await pilotThread.waitFor();
 await installDemoCursor(page);
+await installDemoAudio(page, soundEnabled);
 
 await caption(
   page,
   "Email Codex Agent: локальный email workspace с AgentMail и встроенным Codex.",
-  14000
+  14000,
+  { sound: "start" }
 );
 
 await demoMoveTo(page, page.getByPlaceholder("Search mail"), { afterMs: 800 });
@@ -82,6 +85,7 @@ await caption(
 
 await demoClick(page, page.getByRole("button", { name: "Summarize", exact: true }));
 await page.getByText("Краткое резюме по письму").waitFor({ timeout: 10000 });
+await playDemoSound(page, "success");
 await caption(
   page,
   "Codex кратко выделяет смысл письма: кто написал, что просит отправитель, где риск и какой следующий шаг лучше выбрать.",
@@ -98,6 +102,7 @@ await caption(
 await demoClick(page, page.getByRole("button", { name: "Draft reply", exact: true }));
 await page.getByText("Черновик создан в выбранном письме.").waitFor({ timeout: 10000 });
 await page.getByText("Hi Maya,").waitFor({ timeout: 10000 });
+await playDemoSound(page, "success");
 await caption(
   page,
   "Черновик появился прямо в письме. Codex помог сформулировать ответ, но не получил права отправить его самостоятельно.",
@@ -127,7 +132,8 @@ await caption(
 await caption(
   page,
   "Презентация завершена. Сейчас demo browser закроется автоматически.",
-  7000
+  7000,
+  { sound: "finish" }
 );
 
 console.log("\nDemo autopilot finished. Closing the demo browser and server.");
@@ -142,12 +148,13 @@ await shutdown();
 process.exit(0);
 
 function browserLaunchArgs(placement) {
-  if (!placement) return ["--start-maximized"];
+  const audioArgs = ["--autoplay-policy=no-user-gesture-required"];
+  if (!placement) return [...audioArgs, "--start-maximized"];
   console.log(
     `Demo browser window: ${placement.width}x${placement.height}+${placement.x}+${placement.y}` +
       (placement.label ? ` (${placement.label})` : "")
   );
-  return [`--window-position=${placement.x},${placement.y}`, `--window-size=${placement.width},${placement.height}`];
+  return [...audioArgs, `--window-position=${placement.x},${placement.y}`, `--window-size=${placement.width},${placement.height}`];
 }
 
 function resolveWindowPlacement() {
@@ -243,7 +250,109 @@ function scaledDuration(durationMs) {
   return Math.max(1, Math.round(durationMs * multiplier));
 }
 
-async function caption(page, text, durationMs) {
+async function installDemoAudio(page, enabled) {
+  await page.evaluate((enabled) => {
+    const AudioContextCtor = window.AudioContext ?? window.webkitAudioContext;
+    let context = null;
+
+    const getContext = () => {
+      if (!enabled || !AudioContextCtor) return null;
+      context ??= new AudioContextCtor();
+      void context.resume?.();
+      return context;
+    };
+
+    const envelope = (audioContext, start, duration, peak) => {
+      const gain = audioContext.createGain();
+      gain.gain.setValueAtTime(0.0001, start);
+      gain.gain.exponentialRampToValueAtTime(peak, start + 0.012);
+      gain.gain.exponentialRampToValueAtTime(0.0001, start + duration);
+      gain.connect(audioContext.destination);
+      return gain;
+    };
+
+    const tone = (audioContext, frequency, start, duration, peak = 0.025, type = "sine") => {
+      const oscillator = audioContext.createOscillator();
+      oscillator.type = type;
+      oscillator.frequency.setValueAtTime(frequency, start);
+      oscillator.connect(envelope(audioContext, start, duration, peak));
+      oscillator.start(start);
+      oscillator.stop(start + duration + 0.03);
+    };
+
+    const sweep = (audioContext, from, to, start, duration, peak = 0.018) => {
+      const oscillator = audioContext.createOscillator();
+      oscillator.type = "triangle";
+      oscillator.frequency.setValueAtTime(from, start);
+      oscillator.frequency.exponentialRampToValueAtTime(to, start + duration);
+      oscillator.connect(envelope(audioContext, start, duration, peak));
+      oscillator.start(start);
+      oscillator.stop(start + duration + 0.03);
+    };
+
+    const tick = (audioContext, start) => {
+      const duration = 0.035;
+      const buffer = audioContext.createBuffer(1, Math.floor(audioContext.sampleRate * duration), audioContext.sampleRate);
+      const data = buffer.getChannelData(0);
+      for (let index = 0; index < data.length; index += 1) {
+        data[index] = (Math.random() * 2 - 1) * (1 - index / data.length);
+      }
+      const source = audioContext.createBufferSource();
+      source.buffer = buffer;
+      source.connect(envelope(audioContext, start, duration, 0.035));
+      source.start(start);
+    };
+
+    const play = (kind) => {
+      const audioContext = getContext();
+      if (!audioContext) return;
+
+      const now = audioContext.currentTime + 0.01;
+      if (kind === "start") {
+        tone(audioContext, 440, now, 0.11, 0.02, "triangle");
+        tone(audioContext, 660, now + 0.09, 0.11, 0.02, "triangle");
+        tone(audioContext, 880, now + 0.18, 0.16, 0.022, "triangle");
+        return;
+      }
+
+      if (kind === "move") {
+        sweep(audioContext, 320, 520, now, 0.13, 0.014);
+        return;
+      }
+
+      if (kind === "click") {
+        tick(audioContext, now);
+        tone(audioContext, 980, now + 0.006, 0.045, 0.018, "square");
+        return;
+      }
+
+      if (kind === "success") {
+        tone(audioContext, 587.33, now, 0.1, 0.021, "sine");
+        tone(audioContext, 783.99, now + 0.08, 0.12, 0.021, "sine");
+        tone(audioContext, 1174.66, now + 0.18, 0.17, 0.018, "sine");
+        return;
+      }
+
+      if (kind === "finish") {
+        tone(audioContext, 880, now, 0.13, 0.021, "triangle");
+        tone(audioContext, 659.25, now + 0.11, 0.13, 0.02, "triangle");
+        tone(audioContext, 440, now + 0.22, 0.22, 0.018, "triangle");
+        return;
+      }
+
+      tone(audioContext, 698.46, now, 0.055, 0.012, "sine");
+    };
+
+    window.__emailCodexDemoAudio = { play };
+  }, enabled);
+}
+
+async function playDemoSound(page, kind) {
+  await page.evaluate((value) => window.__emailCodexDemoAudio?.play(value), kind).catch(() => undefined);
+}
+
+async function caption(page, text, durationMs, options = {}) {
+  await playDemoSound(page, options.sound ?? "caption");
   await page.evaluate((value) => {
     let node = document.querySelector("[data-demo-caption]");
     if (!node) {
@@ -290,6 +399,7 @@ async function demoMoveTo(page, locator, options = {}) {
     y: Math.round(box.y + box.height * yRatio + (options.offsetY ?? 0))
   };
 
+  await playDemoSound(page, "move");
   await moveDemoCursor(page, target.x, target.y, options.durationMs ?? 680);
   await page.waitForTimeout(scaledDuration(options.afterMs ?? 420));
 }
@@ -309,8 +419,10 @@ async function demoClick(page, locator, options = {}) {
     y: Math.round(box.y + box.height * yRatio + (options.offsetY ?? 0))
   };
 
+  await playDemoSound(page, "move");
   await moveDemoCursor(page, target.x, target.y, options.durationMs ?? 680);
   await cursorPress(page);
+  await playDemoSound(page, "click");
   await locator.click({ position: { x: Math.max(1, box.width * xRatio), y: Math.max(1, box.height * yRatio) } });
   await page.waitForTimeout(scaledDuration(options.afterMs ?? 420));
 }
