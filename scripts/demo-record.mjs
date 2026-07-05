@@ -8,6 +8,7 @@ const headless = process.env.DEMO_HEADLESS === "1";
 const keepOpen = process.env.DEMO_KEEP_OPEN === "1" && process.env.DEMO_EXIT_ON_FINISH !== "1";
 const pace = Number.parseFloat(process.env.DEMO_PACE ?? "0.6");
 const soundEnabled = process.env.DEMO_SOUND !== "0" && !headless;
+const soundVolume = Number.parseFloat(process.env.DEMO_SOUND_VOLUME ?? "6");
 const windowPlacement = headless ? null : resolveWindowPlacement();
 const server = spawn(process.execPath, ["dist-server/server/index.js"], {
   cwd: process.cwd(),
@@ -45,7 +46,7 @@ await page.goto(baseUrl, { waitUntil: "domcontentloaded" });
 const pilotThread = page.getByRole("button", { name: /Pilot inbox: launch checklist/ });
 await pilotThread.waitFor();
 await installDemoCursor(page);
-await installDemoAudio(page, soundEnabled);
+await installDemoAudio(page, soundEnabled, soundVolume);
 
 await caption(
   page,
@@ -250,10 +251,11 @@ function scaledDuration(durationMs) {
   return Math.max(1, Math.round(durationMs * multiplier));
 }
 
-async function installDemoAudio(page, enabled) {
-  await page.evaluate((enabled) => {
+async function installDemoAudio(page, enabled, volume) {
+  await page.evaluate(({ enabled, volume }) => {
     const AudioContextCtor = window.AudioContext ?? window.webkitAudioContext;
     let context = null;
+    const masterVolume = Number.isFinite(volume) && volume > 0 ? Math.min(volume, 12) : 6;
 
     const getContext = () => {
       if (!enabled || !AudioContextCtor) return null;
@@ -263,9 +265,10 @@ async function installDemoAudio(page, enabled) {
     };
 
     const envelope = (audioContext, start, duration, peak) => {
+      const level = Math.min(0.9, peak * masterVolume);
       const gain = audioContext.createGain();
       gain.gain.setValueAtTime(0.0001, start);
-      gain.gain.exponentialRampToValueAtTime(peak, start + 0.012);
+      gain.gain.exponentialRampToValueAtTime(level, start + 0.012);
       gain.gain.exponentialRampToValueAtTime(0.0001, start + duration);
       gain.connect(audioContext.destination);
       return gain;
@@ -344,7 +347,7 @@ async function installDemoAudio(page, enabled) {
     };
 
     window.__emailCodexDemoAudio = { play };
-  }, enabled);
+  }, { enabled, volume });
 }
 
 async function playDemoSound(page, kind) {

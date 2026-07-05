@@ -151,6 +151,7 @@ Codex:
 
 После автоматического закрытия browser можно останавливать запись. Если нужно оставить окно открытым для ручной проверки, запускать так: `DEMO_KEEP_OPEN=1 npm run demo:record`.
 Если звук не нужен, запускать так: `DEMO_SOUND=0 npm run demo:record`.
+Если звук слишком тихий, запускать так: `DEMO_SOUND_VOLUME=10 npm run demo:record`.
 Если нужно ещё быстрее, запускать так: `DEMO_PACE=0.45 npm run demo:record`. Для более медленной версии: `DEMO_PACE=1 npm run demo:record`.
 
 ## Что не показывать и не проговаривать

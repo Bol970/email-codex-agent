@@ -73,6 +73,7 @@ tries to open the demo browser on monitor `2` by default; override with
 `DEMO_MONITOR=0 npm run demo:record` or `DEMO_MONITOR=1 npm run demo:record`.
 Use `DEMO_KEEP_OPEN=1 npm run demo:record` only when you want the browser to
 stay open after the presentation. Demo sound effects are on by default in headed
-mode; disable them with `DEMO_SOUND=0 npm run demo:record`. Use
-`DEMO_PACE=1 npm run demo:record` for the slower full-length version or
-`DEMO_PACE=0.45 npm run demo:record` for a very quick take.
+mode; disable them with `DEMO_SOUND=0 npm run demo:record` or make them louder
+with `DEMO_SOUND_VOLUME=10 npm run demo:record`. Use `DEMO_PACE=1 npm run
+demo:record` for the slower full-length version or `DEMO_PACE=0.45 npm run
+demo:record` for a very quick take.
