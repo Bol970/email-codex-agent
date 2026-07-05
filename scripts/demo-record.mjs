@@ -448,19 +448,30 @@ async function installDemoCursor(page) {
           will-change: transform;
         }
 
-        [data-demo-cursor]::before {
-          content: "";
+        [data-demo-cursor-outline],
+        [data-demo-cursor-shape] {
           position: absolute;
+        }
+
+        [data-demo-cursor-outline] {
+          left: -3px;
+          top: -3px;
+          width: 34px;
+          height: 40px;
+          clip-path: polygon(0 0, 0 35px, 10px 27px, 17px 40px, 24px 36px, 17px 25px, 34px 25px);
+          background: rgb(255, 255, 255);
+          filter:
+            drop-shadow(0 1px 0 rgba(0, 0, 0, 0.65))
+            drop-shadow(0 5px 7px rgba(0, 0, 0, 0.34));
+        }
+
+        [data-demo-cursor-shape] {
           left: 0;
           top: 0;
           width: 28px;
           height: 34px;
           clip-path: polygon(0 0, 0 29px, 8px 22px, 14px 34px, 20px 31px, 14px 20px, 27px 20px);
           background: rgb(8, 12, 22);
-          filter:
-            drop-shadow(1px 1px 0 rgb(255, 255, 255))
-            drop-shadow(-1px -1px 0 rgb(255, 255, 255))
-            drop-shadow(0 4px 5px rgba(0, 0, 0, 0.42));
         }
 
         [data-demo-cursor]::after {
@@ -507,6 +518,11 @@ async function installDemoCursor(page) {
       cursor.setAttribute("aria-hidden", "true");
       cursor.dataset.x = "96";
       cursor.dataset.y = "120";
+      const outline = document.createElement("span");
+      outline.setAttribute("data-demo-cursor-outline", "true");
+      const shape = document.createElement("span");
+      shape.setAttribute("data-demo-cursor-shape", "true");
+      cursor.append(outline, shape);
       document.body.appendChild(cursor);
     }
   });
