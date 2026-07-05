@@ -6,7 +6,7 @@ const port = Number.parseInt(process.env.DEMO_PORT ?? "5175", 10);
 const baseUrl = `http://127.0.0.1:${port}`;
 const headless = process.env.DEMO_HEADLESS === "1";
 const keepOpen = process.env.DEMO_KEEP_OPEN === "1" && process.env.DEMO_EXIT_ON_FINISH !== "1";
-const pace = Number.parseFloat(process.env.DEMO_PACE ?? "0.6");
+const pace = Number.parseFloat(process.env.DEMO_PACE ?? "0.38");
 const soundEnabled = process.env.DEMO_SOUND !== "0" && !headless;
 const soundVolume = Number.parseFloat(process.env.DEMO_SOUND_VOLUME ?? "6");
 const windowPlacement = headless ? null : resolveWindowPlacement();
@@ -51,53 +51,79 @@ await installDemoAudio(page, soundEnabled, soundVolume);
 await caption(
   page,
   "Email Codex Agent: локальный email workspace с AgentMail и встроенным Codex.",
-  14000,
+  9000,
   { sound: "start" }
 );
 
-await demoMoveTo(page, page.getByPlaceholder("Search mail"), { afterMs: 800 });
+await demoMoveTo(page, page.getByPlaceholder("Search mail"), { afterMs: 360 });
 await caption(
   page,
-  "Интерфейс устроен как рабочий почтовый клиент: слева inbox и фильтры, в центре список писем, справа агент Codex.",
-  16000
+  "Слева inbox и фильтры, в центре письма, справа панель Codex с быстрыми действиями.",
+  9000
 );
 
-await demoMoveTo(page, pilotThread, { xRatio: 0.34, afterMs: 800 });
+await demoMoveTo(page, pilotThread, { xRatio: 0.34, afterMs: 360 });
 await caption(
   page,
-  "В demo-режиме здесь безопасные mock-письма. Это удобно для записи: реальные ключи, адреса и входящие не попадают в кадр.",
-  16000
+  "Для записи используется безопасный demo inbox: без реальных ключей, адресов и личных входящих.",
+  8500
 );
 
 await demoClick(page, pilotThread, { xRatio: 0.34 });
 await page.getByRole("article").getByText("Can you confirm the local agent").waitFor();
 await caption(
   page,
-  "Открываем входящее письмо. Основной сценарий остаётся привычным: прочитать thread, понять запрос и решить, что делать дальше.",
-  18000
+  "Открываем письмо: его текст сразу становится контекстом для Codex, без копирования вручную.",
+  9500
 );
 
-await demoMoveTo(page, page.getByRole("button", { name: "Summarize", exact: true }), { afterMs: 800 });
-await caption(
+await runPreset(
   page,
-  "Справа встроена панель Codex. Быстрые действия запускаются с выбранным письмом как контекстом, поэтому не нужно копировать текст вручную.",
-  18000
+  "Summarize",
+  /Краткое резюме/,
+  "Summarize: Codex выделяет смысл письма, риск и следующий шаг."
 );
 
-await demoClick(page, page.getByRole("button", { name: "Summarize", exact: true }));
-await page.getByText("Краткое резюме по письму").waitFor({ timeout: 10000 });
-await playDemoSound(page, "success");
-await caption(
+await runPreset(
   page,
-  "Codex кратко выделяет смысл письма: кто написал, что просит отправитель, где риск и какой следующий шаг лучше выбрать.",
-  26000
+  "Translate to Russian",
+  /Перевод письма/,
+  "Translate: письмо можно быстро перевести на русский, сохранив смысл и структуру."
 );
 
-await demoMoveTo(page, page.getByRole("button", { name: "Draft reply", exact: true }), { afterMs: 800 });
-await caption(
+await runPreset(
   page,
-  "Следующий шаг — подготовить ответ. В первой версии агент работает по безопасной политике draft-first.",
-  16000
+  "Actions",
+  /Действия и дедлайны/,
+  "Actions: агент достаёт задачи, дедлайны, владельцев и недостающую информацию."
+);
+
+await runPreset(
+  page,
+  "Classify",
+  /Классификация письма/,
+  "Classify: Codex предлагает labels и объясняет, почему письмо важно."
+);
+
+await runPreset(
+  page,
+  "Related",
+  /Связанные письма/,
+  "Related: агент ищет соседние thread, которые могут повлиять на ответ."
+);
+
+await runPreset(
+  page,
+  "Follow up",
+  /Follow-up план/,
+  "Follow up: можно подготовить план напоминания, не отправляя ничего автоматически."
+);
+
+await runPreset(
+  page,
+  "Briefing",
+  /Inbox briefing/,
+  "Briefing: Codex собирает короткую сводку по inbox и приоритетам."
 );
 
 await demoClick(page, page.getByRole("button", { name: "Draft reply", exact: true }));
@@ -106,34 +132,34 @@ await page.getByText("Hi Maya,").waitFor({ timeout: 10000 });
 await playDemoSound(page, "success");
 await caption(
   page,
-  "Черновик появился прямо в письме. Codex помог сформулировать ответ, но не получил права отправить его самостоятельно.",
-  26000
+  "Draft reply: черновик появляется прямо в письме, но отправка не происходит сама.",
+  10000
 );
 
-await demoMoveTo(page, page.getByRole("button", { name: "Send", exact: true }).first(), { afterMs: 800 });
+await demoMoveTo(page, page.getByRole("button", { name: "Send", exact: true }).first(), { afterMs: 360 });
 await caption(
   page,
-  "Кнопка Send остаётся видимой, но необратимое действие делает только пользователь. Это ключевой guardrail сервиса.",
-  20000
+  "Guardrail: Send остаётся явным действием пользователя. Агент работает draft-first.",
+  9000
 );
 
 await demoClick(page, page.getByPlaceholder("Write a reply"), { yRatio: 0.28 });
 await caption(
   page,
-  "Пользователь сохраняет полный контроль: можно отредактировать черновик, написать ответ вручную, сохранить draft или вообще ничего не отправлять.",
-  22000
+  "Ручной режим тоже на месте: можно написать или отредактировать ответ самому.",
+  8000
 );
 
 await caption(
   page,
-  "Итог: AgentMail отвечает за почту, Codex помогает с анализом и черновиками, а необратимые действия остаются под явным контролем.",
-  24000
+  "Итог: AgentMail отвечает за почту, Codex ускоряет анализ и черновики, пользователь контролирует отправку.",
+  11000
 );
 
 await caption(
   page,
   "Презентация завершена. Сейчас demo browser закроется автоматически.",
-  7000,
+  6000,
   { sound: "finish" }
 );
 
@@ -354,6 +380,16 @@ async function playDemoSound(page, kind) {
   await page.evaluate((value) => window.__emailCodexDemoAudio?.play(value), kind).catch(() => undefined);
 }
 
+async function runPreset(page, label, expectedText, captionText) {
+  await demoClick(page, page.getByRole("button", { name: label, exact: true }), {
+    durationMs: 360,
+    afterMs: 180
+  });
+  await page.getByText(expectedText).last().waitFor({ timeout: 10000 });
+  await playDemoSound(page, "success");
+  await caption(page, captionText, 8200);
+}
+
 async function caption(page, text, durationMs, options = {}) {
   await playDemoSound(page, options.sound ?? "caption");
   await page.evaluate((value) => {
@@ -403,8 +439,8 @@ async function demoMoveTo(page, locator, options = {}) {
   };
 
   await playDemoSound(page, "move");
-  await moveDemoCursor(page, target.x, target.y, scaledDuration(options.durationMs ?? 520));
-  await page.waitForTimeout(scaledDuration(options.afterMs ?? 420));
+  await moveDemoCursor(page, target.x, target.y, scaledDuration(options.durationMs ?? 400));
+  await page.waitForTimeout(scaledDuration(options.afterMs ?? 260));
 }
 
 async function demoClick(page, locator, options = {}) {
@@ -423,11 +459,11 @@ async function demoClick(page, locator, options = {}) {
   };
 
   await playDemoSound(page, "move");
-  await moveDemoCursor(page, target.x, target.y, scaledDuration(options.durationMs ?? 520));
+  await moveDemoCursor(page, target.x, target.y, scaledDuration(options.durationMs ?? 400));
   await cursorPress(page);
   await playDemoSound(page, "click");
   await locator.click({ position: { x: Math.max(1, box.width * xRatio), y: Math.max(1, box.height * yRatio) } });
-  await page.waitForTimeout(scaledDuration(options.afterMs ?? 420));
+  await page.waitForTimeout(scaledDuration(options.afterMs ?? 260));
 }
 
 async function installDemoCursor(page) {

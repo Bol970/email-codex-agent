@@ -126,18 +126,67 @@ export class DemoCodexClient implements CodexGateway {
 
 function demoText(preset: PresetAction | undefined, thread: MailThreadDetail | null | undefined) {
   const subject = thread?.subject ?? "selected thread";
-  if (preset === "translate_ru") {
-    return [
-      `Перевод письма "${subject}":`,
-      "",
-      "Отправитель просит подтвердить, что локальный email-агент умеет кратко пересказывать входящие письма, готовить черновики ответов и оставлять отправку только после явного подтверждения пользователя."
-    ].join("\n");
+  const labels = thread?.labels.length ? thread.labels.join(", ") : "без текущих пользовательских labels";
+
+  switch (preset) {
+    case "translate_ru":
+      return [
+        `Перевод письма "${subject}":`,
+        "",
+        "Отправитель просит подтвердить, что локальный email-агент умеет кратко пересказывать входящие письма, готовить черновики ответов и оставлять отправку только после явного подтверждения пользователя."
+      ].join("\n");
+    case "extract_actions":
+      return [
+        `Действия и дедлайны по письму "${subject}":`,
+        "",
+        "- Подтвердить, что агент умеет суммировать входящие thread.",
+        "- Подготовить короткий draft reply без автоматической отправки.",
+        "- Проверить, что отправка остаётся за пользователем через явный клик Send.",
+        "- Дедлайн не указан; можно ответить сразу."
+      ].join("\n");
+    case "classify":
+      return [
+        `Классификация письма "${subject}":`,
+        "",
+        `- Текущие labels: ${labels}.`,
+        "- Рекомендованные labels: needs-reply, important.",
+        "- Причина: письмо просит подтверждение ключевой функциональности и ожидает ответа.",
+        "- Автоматически отправлять labels в demo я не буду; это предложение для пользователя."
+      ].join("\n");
+    case "related_threads":
+      return [
+        `Связанные письма для "${subject}":`,
+        "",
+        "- Feedback on the email workspace UI: полезно сверить UX ожидания перед демонстрацией.",
+        "- Invoice question for July: пример waiting-thread, где агент может извлечь deadline.",
+        "- Эти связи помогают быстро собрать контекст перед ответом."
+      ].join("\n");
+    case "follow_up":
+      return [
+        `Follow-up план для "${subject}":`,
+        "",
+        "- Если ответа ещё нет через 24 часа, напомнить коротким письмом.",
+        "- Тон: спокойный и подтверждающий, без давления.",
+        "- Безопасный вариант: подготовить follow-up draft и оставить Send пользователю."
+      ].join("\n");
+    case "briefing":
+      return [
+        "Inbox briefing:",
+        "",
+        "- Pilot inbox: launch checklist — high priority, needs reply.",
+        "- Invoice question for July — waiting on PO number before Friday.",
+        "- Feedback on the email workspace UI — done, полезный контекст для polish.",
+        "- Рекомендация: сначала закрыть launch checklist, затем invoice."
+      ].join("\n");
+    case "summarize":
+    case "draft_reply":
+    default:
+      return [
+        `Краткое резюме по письму "${subject}":`,
+        "",
+        "- Отправитель просит подтвердить возможности локального email-агента.",
+        "- Важный акцент: агент может готовить черновики, но не должен сам отправлять письма.",
+        "- Следующий шаг: подготовить короткий подтверждающий ответ и оставить его в draft."
+      ].join("\n");
   }
-  return [
-    `Краткое резюме по письму "${subject}":`,
-    "",
-    "- Отправитель просит подтвердить возможности локального email-агента.",
-    "- Важный акцент: агент может готовить черновики, но не должен сам отправлять письма.",
-    "- Следующий шаг: подготовить короткий подтверждающий ответ и оставить его в draft."
-  ].join("\n");
 }
