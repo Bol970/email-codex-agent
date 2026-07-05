@@ -17,7 +17,8 @@ import {
   Send,
   Sparkles,
   Tags,
-  Trash2
+  Trash2,
+  X
 } from "lucide-react";
 import { client, connectEvents } from "./api";
 import type {
@@ -37,16 +38,17 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 
 type UiMessage = {
   id: string;
-  kind: "info" | "error" | "agent" | "tool" | "user";
+  kind: "info" | "error" | "agent" | "tool" | "user" | "approval";
   text: string;
   streamKey?: string;
+  approval?: ApprovalRequest;
+  decision?: string;
 };
 
 const filters = [
@@ -306,8 +308,19 @@ export function App() {
   }
 
   async function resolveApproval(request: ApprovalRequest, decision: string) {
-    await client.codexApproval(request, decision);
-    setApprovals((items) => items.filter((item) => item.id !== request.id));
+    try {
+      await client.codexApproval(request, decision);
+      setApprovals((items) => items.filter((item) => !sameApprovalId(item.id, request.id)));
+      setCodexMessages((items) =>
+        items.map((message) =>
+          message.kind === "approval" && message.approval && sameApprovalId(message.approval.id, request.id)
+            ? { ...message, decision }
+            : message
+        )
+      );
+    } catch (error) {
+      pushMessage(setCodexMessages, "error", errorText(error));
+    }
   }
 
   return (
@@ -593,10 +606,15 @@ function CodexPane(props: {
 }) {
   const chatEndRef = React.useRef<HTMLDivElement | null>(null);
   const lastMessageText = props.messages.at(-1)?.text;
+  const lastMessageDecision = props.messages.at(-1)?.decision;
+  const pendingApprovalIds = React.useMemo(
+    () => new Set(props.approvals.map((request) => String(request.id))),
+    [props.approvals]
+  );
 
   React.useEffect(() => {
     chatEndRef.current?.scrollIntoView({ block: "end" });
-  }, [props.messages.length, lastMessageText, props.isBusy]);
+  }, [lastMessageDecision, lastMessageText, props.approvals.length, props.messages.length, props.isBusy]);
 
   const handleComposerKeyDown = (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (event.key !== "Enter" || event.altKey || event.nativeEvent.isComposing) return;
@@ -648,52 +666,25 @@ function CodexPane(props: {
         </div>
       </div>
 
-      <Tabs defaultValue="stream" className="flex min-h-0 flex-1 flex-col">
-        <div className="carbon-strip shrink-0 border-b border-border px-3 py-2">
-          <TabsList>
-            <TabsTrigger value="stream">Stream</TabsTrigger>
-            <TabsTrigger value="approvals">Approvals</TabsTrigger>
-          </TabsList>
+      <ScrollArea className="min-h-0 flex-1">
+        <div className="flex min-h-full flex-col gap-4 p-4">
+          {props.messages.length === 0 && (
+            <div className="flex flex-1 items-center justify-center text-sm text-muted-foreground">Ask Codex</div>
+          )}
+          {props.messages.map((message) => (
+            <CodexMessageBubble
+              key={message.id}
+              message={message}
+              pendingApproval={message.approval ? pendingApprovalIds.has(String(message.approval.id)) : false}
+              onResolve={props.onResolve}
+            />
+          ))}
+          {props.isBusy && props.messages.at(-1)?.kind === "user" && (
+            <div className="max-w-[88%] text-sm leading-6 text-muted-foreground">Thinking...</div>
+          )}
+          <div ref={chatEndRef} />
         </div>
-        <TabsContent value="stream" className="m-0 min-h-0 flex-1 overflow-hidden">
-          <ScrollArea className="h-full min-h-0">
-            <div className="flex min-h-full flex-col gap-4 p-4">
-              {props.messages.length === 0 && (
-                <div className="flex flex-1 items-center justify-center text-sm text-muted-foreground">Ask Codex</div>
-              )}
-              {props.messages.map((message) => <CodexMessageBubble key={message.id} message={message} />)}
-              {props.isBusy && props.messages.at(-1)?.kind === "user" && (
-                <div className="max-w-[88%] text-sm leading-6 text-muted-foreground">Thinking...</div>
-              )}
-              <div ref={chatEndRef} />
-            </div>
-          </ScrollArea>
-        </TabsContent>
-        <TabsContent value="approvals" className="m-0 min-h-0 flex-1 overflow-hidden">
-          <ScrollArea className="h-full min-h-0">
-            <div className="flex flex-col gap-2 p-3">
-              {props.approvals.length === 0 && (
-                <div className="approval-card rounded-md border bg-background p-3 text-sm text-muted-foreground">No pending approvals</div>
-              )}
-              {props.approvals.map((request) => (
-                <div key={String(request.id)} className="approval-card rounded-md border bg-background p-3">
-                  <div className="text-sm font-medium">{request.title}</div>
-                  {request.reason && <p className="mt-1 text-xs text-muted-foreground">{request.reason}</p>}
-                  {request.command && <code className="mt-2 block rounded bg-muted p-2 text-xs">{request.command}</code>}
-                  <div className="mt-3 flex justify-end gap-2">
-                    <Button size="sm" variant="outline" onClick={() => props.onResolve(request, "decline")}>
-                      Decline
-                    </Button>
-                    <Button size="sm" onClick={() => props.onResolve(request, "accept")}>
-                      Accept
-                    </Button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </ScrollArea>
-        </TabsContent>
-      </Tabs>
+      </ScrollArea>
 
       <div className="chrome-dock shrink-0 border-t border-border p-3" data-testid="codex-dock">
         <div className="flex items-end gap-2">
@@ -719,7 +710,19 @@ function CodexPane(props: {
   );
 }
 
-function CodexMessageBubble({ message }: { message: UiMessage }) {
+function CodexMessageBubble({
+  message,
+  pendingApproval,
+  onResolve
+}: {
+  message: UiMessage;
+  pendingApproval: boolean;
+  onResolve: (request: ApprovalRequest, decision: string) => void;
+}) {
+  if (message.kind === "approval" && message.approval) {
+    return <ApprovalMessageBubble message={message} pending={pendingApproval} onResolve={onResolve} />;
+  }
+
   const isUser = message.kind === "user";
   const isAssistant = message.kind === "agent";
   return (
@@ -735,6 +738,55 @@ function CodexMessageBubble({ message }: { message: UiMessage }) {
         )}
       >
         <CodexMessageContent text={message.text} rich={isAssistant} />
+      </div>
+    </div>
+  );
+}
+
+function ApprovalMessageBubble({
+  message,
+  pending,
+  onResolve
+}: {
+  message: UiMessage;
+  pending: boolean;
+  onResolve: (request: ApprovalRequest, decision: string) => void;
+}) {
+  const request = message.approval;
+  if (!request) return null;
+  const acceptDecision = approvalDecision(request, ["accept", "submit"]);
+  const declineDecision = approvalDecision(request, ["decline", "cancel"]);
+  const resolvedLabel = approvalDecisionLabel(message.decision);
+
+  return (
+    <div className="flex justify-start">
+      <div className="approval-card agent-message max-w-[92%] rounded-md border px-3 py-3 text-sm leading-6">
+        <div className="console-title text-xs font-semibold">Codex просит подтверждение</div>
+        <div className="mt-2 font-semibold">{request.title}</div>
+        {request.reason && <p className="mt-1 text-xs text-muted-foreground">{request.reason}</p>}
+        {request.command && (
+          <code className="mt-2 block max-h-32 overflow-auto rounded-md border bg-muted p-2 text-xs whitespace-pre-wrap break-words">
+            {request.command}
+          </code>
+        )}
+        <div className="mt-3 flex items-center justify-end gap-2">
+          {resolvedLabel || !pending ? (
+            <Badge variant={message.decision === "accept" || message.decision === "submit" ? "done" : "secondary"}>
+              {resolvedLabel ?? "Запрос закрыт"}
+            </Badge>
+          ) : (
+            <>
+              <Button size="sm" variant="outline" onClick={() => onResolve(request, declineDecision)}>
+                <X data-icon="inline-start" />
+                Отклонить
+              </Button>
+              <Button size="sm" onClick={() => onResolve(request, acceptDecision)}>
+                <Check data-icon="inline-start" />
+                Подтвердить
+              </Button>
+            </>
+          )}
+        </div>
       </div>
     </div>
   );
@@ -845,8 +897,24 @@ export function handleCodexEvent(
   setBusy: React.Dispatch<React.SetStateAction<boolean>>
 ) {
   if (event.type === "approval_request") {
+    setMessages((items) => {
+      if (
+        items.some((message) => message.kind === "approval" && message.approval && sameApprovalId(message.approval.id, event.request.id))
+      ) {
+        return items;
+      }
+      return [
+        ...items,
+        {
+          id: `approval-${String(event.request.id)}`,
+          kind: "approval",
+          text: event.request.title,
+          approval: event.request
+        }
+      ].slice(-120);
+    });
     setApprovals((items) => {
-      if (items.some((item) => item.id === event.request.id)) return items;
+      if (items.some((item) => sameApprovalId(item.id, event.request.id))) return items;
       return [event.request, ...items];
     });
     return;
@@ -892,6 +960,23 @@ function pushMessage(
 ) {
   if (!text.trim()) return;
   setMessages((items) => [...items, { id: crypto.randomUUID(), kind, text }].slice(-120));
+}
+
+function sameApprovalId(left: string | number, right: string | number) {
+  return String(left) === String(right);
+}
+
+function approvalDecision(request: ApprovalRequest, preferred: string[]) {
+  return preferred.find((decision) => request.availableDecisions.includes(decision)) ?? preferred[0];
+}
+
+function approvalDecisionLabel(decision?: string) {
+  if (!decision) return null;
+  if (decision === "accept") return "Подтверждено";
+  if (decision === "submit") return "Отправлено";
+  if (decision === "decline") return "Отклонено";
+  if (decision === "cancel") return "Отменено";
+  return `Решено: ${decision}`;
 }
 
 function appendMessageDelta(
