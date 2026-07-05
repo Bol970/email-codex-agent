@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "tsx server/index.ts",
-    "dev:watch": "tsx watch server/index.ts",
+    "dev:watch": "tsx watch --clear-screen=false --exclude 'vite.config.ts.timestamp-*' server/index.ts",
     "dev:e2e": "tsx server/index.ts",
     "build": "tsc -p tsconfig.server.json && vite build",
     "start": "node dist-server/server/index.js",
