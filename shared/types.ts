@@ -116,6 +116,7 @@ export type CodexStreamEvent =
   | {
       type: "tool_result";
       requestId: string | number;
+      tool?: string | null;
       ok: boolean;
       result?: unknown;
       error?: string;

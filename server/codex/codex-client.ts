@@ -284,14 +284,14 @@ export class CodexAppServerClient {
         success: true
       };
       this.respond(message.id!, response);
-      this.options.hub.publish({ type: "tool_result", requestId: message.id!, ok: true, result });
+      this.options.hub.publish({ type: "tool_result", requestId: message.id!, tool, ok: true, result });
     } catch (error) {
       const messageText = error instanceof Error ? error.message : String(error);
       this.respond(message.id!, {
         contentItems: [{ type: "inputText", text: messageText }],
         success: false
       });
-      this.options.hub.publish({ type: "tool_result", requestId: message.id!, ok: false, error: messageText });
+      this.options.hub.publish({ type: "tool_result", requestId: message.id!, tool, ok: false, error: messageText });
     }
   }
 

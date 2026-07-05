@@ -1,5 +1,5 @@
 import type * as React from "react";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { handleCodexEvent } from "../src/App";
 import type { ApprovalRequest, CodexStreamEvent } from "../shared/types";
 
@@ -19,6 +19,10 @@ function dispatchState<T>(read: () => T, write: (value: T) => void): React.Dispa
 }
 
 describe("handleCodexEvent", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
   it("combines Codex agent message deltas into one stream message", () => {
     vi.spyOn(crypto, "randomUUID").mockReturnValueOnce("message_1").mockReturnValueOnce("message_2");
 
@@ -124,5 +128,61 @@ describe("handleCodexEvent", () => {
       text: "Codex wants to run a command",
       approval: request
     });
+  });
+
+  it("does not show generic successful tool events in the chat", () => {
+    let messages: Message[] = [];
+    let approvals: ApprovalRequest[] = [];
+    let busy = true;
+    const setMessages = dispatchState(() => messages, (value) => {
+      messages = value;
+    }) as React.Dispatch<React.SetStateAction<any[]>>;
+    const setApprovals = dispatchState(() => approvals, (value) => {
+      approvals = value;
+    });
+    const setBusy = dispatchState(() => busy, (value) => {
+      busy = value;
+    });
+
+    handleCodexEvent(
+      { type: "tool_result", requestId: "tool_1", tool: "log_action", ok: true, result: { ok: true } },
+      setMessages,
+      setApprovals,
+      setBusy
+    );
+
+    expect(messages).toHaveLength(0);
+  });
+
+  it("shows draft tool events as a human-readable chat note", () => {
+    vi.spyOn(crypto, "randomUUID").mockReturnValueOnce("draft_message");
+
+    let messages: Message[] = [];
+    let approvals: ApprovalRequest[] = [];
+    let busy = true;
+    const setMessages = dispatchState(() => messages, (value) => {
+      messages = value;
+    }) as React.Dispatch<React.SetStateAction<any[]>>;
+    const setApprovals = dispatchState(() => approvals, (value) => {
+      approvals = value;
+    });
+    const setBusy = dispatchState(() => busy, (value) => {
+      busy = value;
+    });
+
+    handleCodexEvent(
+      { type: "tool_result", requestId: "tool_2", tool: "create_reply_draft", ok: true, result: { draftId: "draft_1" } },
+      setMessages,
+      setApprovals,
+      setBusy
+    );
+
+    expect(messages).toEqual([
+      {
+        id: "draft_message",
+        kind: "tool",
+        text: "Черновик создан в выбранном письме."
+      }
+    ]);
   });
 });

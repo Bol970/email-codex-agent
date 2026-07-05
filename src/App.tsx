@@ -170,6 +170,16 @@ export function App() {
     }
   }, [activeLabel, markThreadReadOptimistically, persistThreadRead, query, readThreadIds, selectedInbox, selectedThread]);
 
+  const refreshDrafts = React.useCallback(async () => {
+    if (!selectedInbox) return;
+    try {
+      const response = await client.drafts(selectedInbox);
+      setDrafts(response.drafts);
+    } catch {
+      setDrafts([]);
+    }
+  }, [selectedInbox]);
+
   React.useEffect(() => {
     let mounted = true;
     async function boot() {
@@ -198,9 +208,8 @@ export function App() {
   }, [refreshThreads]);
 
   React.useEffect(() => {
-    if (!selectedInbox) return;
-    void client.drafts(selectedInbox).then((res) => setDrafts(res.drafts)).catch(() => setDrafts([]));
-  }, [selectedInbox, selectedThread?.threadId]);
+    void refreshDrafts();
+  }, [refreshDrafts, selectedThread?.threadId]);
 
   React.useEffect(() => {
     const disconnectMail = connectEvents<MailEvent>("/api/events", (event) => {
@@ -221,12 +230,16 @@ export function App() {
     });
     const disconnectCodex = connectEvents<CodexStreamEvent>("/api/codex/events", (event) => {
       handleCodexEvent(event, setCodexMessages, setApprovals, setIsCodexBusy);
+      if (event.type === "tool_result" && event.ok) {
+        void refreshDrafts();
+        void refreshThreads();
+      }
     });
     return () => {
       disconnectMail();
       disconnectCodex();
     };
-  }, [refreshThreads]);
+  }, [refreshDrafts, refreshThreads]);
 
   async function selectThread(thread: MailThreadSummary) {
     if (selectedThread?.threadId !== thread.threadId) setReplyText("");
@@ -925,7 +938,13 @@ export function handleCodexEvent(
     return;
   }
   if (event.type === "tool_result") {
-    pushMessage(setMessages, event.ok ? "tool" : "error", event.ok ? "Tool completed" : event.error ?? "Tool failed");
+    if (!event.ok) {
+      pushMessage(setMessages, "error", event.error ?? "Tool failed");
+      return;
+    }
+    if (event.tool === "create_reply_draft") {
+      pushMessage(setMessages, "tool", "Черновик создан в выбранном письме.");
+    }
     return;
   }
   if (event.type === "rpc") {
