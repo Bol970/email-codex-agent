@@ -453,11 +453,11 @@ async function installDemoCursor(page) {
           width: 28px;
           height: 34px;
           clip-path: polygon(0 0, 0 29px, 8px 22px, 14px 34px, 20px 31px, 14px 20px, 27px 20px);
-          background: rgb(248, 251, 255);
+          background: rgb(8, 12, 22);
           filter:
-            drop-shadow(1px 1px 0 rgb(31, 43, 68))
-            drop-shadow(-1px -1px 0 rgb(31, 43, 68))
-            drop-shadow(0 4px 5px rgba(0, 0, 0, 0.38));
+            drop-shadow(1px 1px 0 rgb(255, 255, 255))
+            drop-shadow(-1px -1px 0 rgb(255, 255, 255))
+            drop-shadow(0 4px 5px rgba(0, 0, 0, 0.42));
         }
 
         [data-demo-cursor]::after {
