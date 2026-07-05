@@ -275,6 +275,18 @@
       0 1px 0 hsl(0 0% 0% / 0.18);
   }
 
+  .privacy-blur {
+    display: inline-block;
+    max-width: 100%;
+    filter: blur(4px);
+    user-select: none;
+    vertical-align: baseline;
+  }
+
+  .privacy-blur::selection {
+    background: transparent;
+  }
+
   @media (min-width: 1181px) {
     body,
     #root {

@@ -71,6 +71,12 @@ const presets: Array<{ action: PresetAction; label: string; icon: React.ElementT
 ];
 
 const hiddenSystemLabels = new Set(["received", "sent", "unread", "read", "inbound", "outbound"]);
+const emailAddressPattern = /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi;
+
+type EmailTextPart = {
+  text: string;
+  isEmail: boolean;
+};
 
 function codexUserMessage(prompt: string, preset?: PresetAction) {
   const presetLabel = preset ? presets.find((item) => item.action === preset)?.label : null;
@@ -84,6 +90,27 @@ function hasLabel(labels: string[], value: string) {
 
 function isVisibleLabel(label: string) {
   return !hiddenSystemLabels.has(label.toLowerCase());
+}
+
+export function splitEmailText(text: string): EmailTextPart[] {
+  const parts: EmailTextPart[] = [];
+  emailAddressPattern.lastIndex = 0;
+
+  let lastIndex = 0;
+  let match: RegExpExecArray | null;
+  while ((match = emailAddressPattern.exec(text)) !== null) {
+    if (match.index > lastIndex) {
+      parts.push({ text: text.slice(lastIndex, match.index), isEmail: false });
+    }
+    parts.push({ text: match[0], isEmail: true });
+    lastIndex = match.index + match[0].length;
+  }
+
+  if (lastIndex < text.length) {
+    parts.push({ text: text.slice(lastIndex), isEmail: false });
+  }
+
+  return parts.length ? parts : [{ text, isEmail: false }];
 }
 
 function withoutLabel<T extends string>(labels: T[], value: string): T[] {
@@ -127,6 +154,7 @@ export function App() {
   const [readThreadIds, setReadThreadIds] = React.useState<Set<string>>(() => new Set());
 
   const selectedInbox = selectedInboxId || status?.selectedInboxId || inboxes[0]?.inboxId || "";
+  const blurEmailAddresses = Boolean(status?.blurEmailAddresses);
 
   const markThreadReadOptimistically = React.useCallback((threadId: string) => {
     setReadThreadIds((current) => {
@@ -343,6 +371,7 @@ export function App() {
           status={status}
           inboxes={inboxes}
           selectedInboxId={selectedInbox}
+          blurEmailAddresses={blurEmailAddresses}
           activeLabel={activeLabel}
           onInboxChange={setSelectedInboxId}
           onLabelChange={setActiveLabel}
@@ -353,6 +382,7 @@ export function App() {
           selectedThreadId={selectedThread?.threadId}
           query={query}
           isLoading={isLoading}
+          blurEmailAddresses={blurEmailAddresses}
           onQueryChange={setQuery}
           onSelect={(thread) => void selectThread(thread)}
         />
@@ -360,6 +390,7 @@ export function App() {
           thread={selectedThread}
           drafts={drafts}
           replyText={replyText}
+          blurEmailAddresses={blurEmailAddresses}
           onReplyTextChange={setReplyText}
           onSendReply={() => void sendReply()}
           onCreateDraft={() => void createDraft()}
@@ -372,6 +403,7 @@ export function App() {
           codexInput={codexInput}
           messages={codexMessages}
           approvals={approvals}
+          blurEmailAddresses={blurEmailAddresses}
           isBusy={isCodexBusy}
           onInputChange={setCodexInput}
           onRun={(preset) => void runCodex(preset)}
@@ -394,6 +426,7 @@ function Sidebar(props: {
   status: StatusResponse | null;
   inboxes: InboxSummary[];
   selectedInboxId: string;
+  blurEmailAddresses: boolean;
   activeLabel: string;
   onInboxChange: (value: string) => void;
   onLabelChange: (value: string) => void;
@@ -425,7 +458,9 @@ function Sidebar(props: {
             onClick={() => props.onInboxChange(inbox.inboxId)}
           >
             <Inbox data-icon="inline-start" />
-            <span className="truncate">{inbox.address}</span>
+            <span className="truncate">
+              <EmailAwareText text={inbox.address} blurEmailAddresses={props.blurEmailAddresses} />
+            </span>
           </Button>
         ))}
       </div>
@@ -458,6 +493,7 @@ function ThreadList(props: {
   selectedThreadId?: string;
   query: string;
   isLoading: boolean;
+  blurEmailAddresses: boolean;
   onQueryChange: (value: string) => void;
   onSelect: (thread: MailThreadSummary) => void;
 }) {
@@ -501,13 +537,16 @@ function ThreadList(props: {
                       </div>
                     </div>
                     <div className="mt-1 truncate text-xs text-muted-foreground">
-                      {thread.participants.map((p) => p.name ?? p.email).join(", ")}
+                      <EmailAwareText
+                        text={thread.participants.map((p) => p.name ?? p.email).join(", ")}
+                        blurEmailAddresses={props.blurEmailAddresses}
+                      />
                     </div>
                   </div>
                   <time className="shrink-0 text-[11px] text-muted-foreground">{shortTime(thread.lastMessageAt)}</time>
                 </div>
                 <p className="mt-2 line-clamp-2 max-w-full overflow-hidden break-words text-xs leading-5 text-muted-foreground">
-                  {thread.preview}
+                  <EmailAwareText text={thread.preview} blurEmailAddresses={props.blurEmailAddresses} />
                 </p>
                 <LabelRow labels={thread.labels} className="mt-2" />
               </button>
@@ -523,6 +562,7 @@ function ReadingPane(props: {
   thread: MailThreadDetail | null;
   drafts: MailDraft[];
   replyText: string;
+  blurEmailAddresses: boolean;
   onReplyTextChange: (value: string) => void;
   onSendReply: () => void;
   onCreateDraft: () => void;
@@ -553,7 +593,11 @@ function ReadingPane(props: {
           <ScrollArea className="min-h-0 flex-1 overflow-hidden">
             <div className="flex flex-col gap-4 p-4">
               {props.thread.messages.map((message) => (
-                <MessageBubble key={message.messageId} message={message} />
+                <MessageBubble
+                  key={message.messageId}
+                  message={message}
+                  blurEmailAddresses={props.blurEmailAddresses}
+                />
               ))}
               {relatedDrafts.map((draft) => (
                 <div key={draft.draftId} className="draft-card rounded-md border border-info-border bg-info p-3">
@@ -569,7 +613,9 @@ function ReadingPane(props: {
                       </Button>
                     </div>
                   </div>
-                  <p className="whitespace-pre-wrap text-sm leading-6 text-info-foreground">{draft.text}</p>
+                  <p className="whitespace-pre-wrap text-sm leading-6 text-info-foreground">
+                    <EmailAwareText text={draft.text} blurEmailAddresses={props.blurEmailAddresses} />
+                  </p>
                 </div>
               ))}
             </div>
@@ -610,6 +656,7 @@ function CodexPane(props: {
   codexInput: string;
   messages: UiMessage[];
   approvals: ApprovalRequest[];
+  blurEmailAddresses: boolean;
   isBusy: boolean;
   onInputChange: (value: string) => void;
   onRun: (preset?: PresetAction) => void;
@@ -689,6 +736,7 @@ function CodexPane(props: {
               key={message.id}
               message={message}
               pendingApproval={message.approval ? pendingApprovalIds.has(String(message.approval.id)) : false}
+              blurEmailAddresses={props.blurEmailAddresses}
               onResolve={props.onResolve}
             />
           ))}
@@ -726,10 +774,12 @@ function CodexPane(props: {
 function CodexMessageBubble({
   message,
   pendingApproval,
+  blurEmailAddresses,
   onResolve
 }: {
   message: UiMessage;
   pendingApproval: boolean;
+  blurEmailAddresses: boolean;
   onResolve: (request: ApprovalRequest, decision: string) => void;
 }) {
   if (message.kind === "approval" && message.approval) {
@@ -750,7 +800,7 @@ function CodexMessageBubble({
           message.kind === "tool" && "border border-success-border bg-success text-success-foreground"
         )}
       >
-        <CodexMessageContent text={message.text} rich={isAssistant} />
+        <CodexMessageContent text={message.text} rich={isAssistant} blurEmailAddresses={blurEmailAddresses} />
       </div>
     </div>
   );
@@ -805,18 +855,32 @@ function ApprovalMessageBubble({
   );
 }
 
-function CodexMessageContent({ text, rich }: { text: string; rich: boolean }) {
-  if (!rich) return <pre className="whitespace-pre-wrap font-sans">{text}</pre>;
+function CodexMessageContent({
+  text,
+  rich,
+  blurEmailAddresses
+}: {
+  text: string;
+  rich: boolean;
+  blurEmailAddresses: boolean;
+}) {
+  if (!rich) {
+    return (
+      <pre className="whitespace-pre-wrap font-sans">
+        <EmailAwareText text={text} blurEmailAddresses={blurEmailAddresses} />
+      </pre>
+    );
+  }
   return (
     <div className="flex flex-col gap-3">
       {text.split(/\n{2,}/).map((block, index) => (
-        <MarkdownBlock key={`${index}-${block.slice(0, 12)}`} text={block} />
+        <MarkdownBlock key={`${index}-${block.slice(0, 12)}`} text={block} blurEmailAddresses={blurEmailAddresses} />
       ))}
     </div>
   );
 }
 
-function MarkdownBlock({ text }: { text: string }) {
+function MarkdownBlock({ text, blurEmailAddresses }: { text: string; blurEmailAddresses: boolean }) {
   const lines = text.split("\n").filter((line) => line.trim());
   const isList = lines.length > 1 && lines.every((line) => /^\s*[-*]\s+/.test(line));
   if (isList) {
@@ -824,7 +888,7 @@ function MarkdownBlock({ text }: { text: string }) {
       <ul className="flex list-disc flex-col gap-1 pl-5">
         {lines.map((line, index) => (
           <li key={`${index}-${line}`} className="pl-1">
-            <InlineMarkdown text={line.replace(/^\s*[-*]\s+/, "")} />
+            <InlineMarkdown text={line.replace(/^\s*[-*]\s+/, "")} blurEmailAddresses={blurEmailAddresses} />
           </li>
         ))}
       </ul>
@@ -832,45 +896,75 @@ function MarkdownBlock({ text }: { text: string }) {
   }
   return (
     <p className="whitespace-pre-wrap">
-      <InlineMarkdown text={text} />
+      <InlineMarkdown text={text} blurEmailAddresses={blurEmailAddresses} />
     </p>
   );
 }
 
-function InlineMarkdown({ text }: { text: string }) {
+function InlineMarkdown({ text, blurEmailAddresses }: { text: string; blurEmailAddresses: boolean }) {
   const parts = text.split(/(\*\*[^*]+\*\*)/g);
   return (
     <>
       {parts.map((part, index) =>
         part.startsWith("**") && part.endsWith("**") ? (
           <strong key={`${index}-${part}`} className="font-semibold">
-            {part.slice(2, -2)}
+            <EmailAwareText text={part.slice(2, -2)} blurEmailAddresses={blurEmailAddresses} />
           </strong>
         ) : (
-          <React.Fragment key={`${index}-${part}`}>{part}</React.Fragment>
+          <React.Fragment key={`${index}-${part}`}>
+            <EmailAwareText text={part} blurEmailAddresses={blurEmailAddresses} />
+          </React.Fragment>
         )
       )}
     </>
   );
 }
 
-function MessageBubble({ message }: { message: MailMessage }) {
+function EmailAwareText({ text, blurEmailAddresses }: { text: string; blurEmailAddresses: boolean }) {
+  if (!blurEmailAddresses) return <>{text}</>;
+  return (
+    <>
+      {splitEmailText(text).map((part, index) =>
+        part.isEmail ? (
+          <span
+            key={`${index}-${part.text}`}
+            className="privacy-blur"
+            data-private="email"
+            aria-label="email address hidden"
+          >
+            {part.text}
+          </span>
+        ) : (
+          <React.Fragment key={`${index}-${part.text}`}>{part.text}</React.Fragment>
+        )
+      )}
+    </>
+  );
+}
+
+function MessageBubble({ message, blurEmailAddresses }: { message: MailMessage; blurEmailAddresses: boolean }) {
   const body = message.extractedText || message.text || "(empty)";
   return (
     <article className="message-card rounded-md border bg-card p-4">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <div className="truncate text-sm font-medium">
-            {message.from.name ?? message.from.email}
+            <EmailAwareText text={message.from.name ?? message.from.email} blurEmailAddresses={blurEmailAddresses} />
             <span className="ml-2 text-xs font-normal text-muted-foreground">{message.direction}</span>
           </div>
           <div className="mt-1 truncate text-xs text-muted-foreground">
-            to {message.to.map((item) => item.name ?? item.email).join(", ")}
+            to{" "}
+            <EmailAwareText
+              text={message.to.map((item) => item.name ?? item.email).join(", ")}
+              blurEmailAddresses={blurEmailAddresses}
+            />
           </div>
         </div>
         <time className="shrink-0 text-xs text-muted-foreground">{shortTime(message.date)}</time>
       </div>
-      <p className="mt-4 whitespace-pre-wrap text-sm leading-6">{body}</p>
+      <p className="mt-4 whitespace-pre-wrap text-sm leading-6">
+        <EmailAwareText text={body} blurEmailAddresses={blurEmailAddresses} />
+      </p>
       <LabelRow labels={message.labels} className="mt-3" />
     </article>
   );

@@ -29,12 +29,15 @@ AGENTMAIL_API_KEY=am_your_key_here
 AGENTMAIL_INBOX_ID=
 PORT=5173
 MOCK_MODE=0
+BLUR_EMAIL_ADDRESSES=0
 AGENTMAIL_PROXY_URL=http://127.0.0.1:8118
 ```
 
 `AGENTMAIL_INBOX_ID` is optional. If it is empty, the UI shows available inboxes.
 Outbound AgentMail requests use `AGENTMAIL_PROXY_URL`; by default it points at
 the local HTTP proxy on `127.0.0.1:8118`.
+Set `BLUR_EMAIL_ADDRESSES=1` to visually blur email addresses in the local UI
+for screenshots or screen sharing.
 
 Codex uses the local `codex app-server` binary and your existing ChatGPT/Codex
 login. If Codex is not authenticated, use the login controls in the right panel.

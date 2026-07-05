@@ -139,6 +139,7 @@ export type StatusResponse = {
   mode: AppMode;
   hasAgentMailKey: boolean;
   selectedInboxId?: string | null;
+  blurEmailAddresses: boolean;
   codexAvailable: boolean;
   codexVersion?: string | null;
   message?: string;

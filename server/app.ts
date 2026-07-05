@@ -28,6 +28,7 @@ export function createApp(deps: AppDeps) {
       mode: deps.mail.mode,
       hasAgentMailKey: deps.mail.hasCredentials,
       selectedInboxId: deps.mail.selectedInboxId ?? null,
+      blurEmailAddresses: deps.config.blurEmailAddresses,
       codexAvailable: Boolean(codexVersion),
       codexVersion,
       message:
