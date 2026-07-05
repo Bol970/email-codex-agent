@@ -60,9 +60,12 @@ npm run lint
 npm run test
 npm run build
 npm run test:e2e
+npm run demo:record
 npm run dev:watch
 npm run start
 ```
 
 `npm run test:e2e` starts the local server in mock mode and runs Playwright on
 desktop and mobile viewports.
+`npm run demo:record` opens a headed browser, runs the short mock demo by itself,
+and keeps the browser open until you press `Ctrl+C`.

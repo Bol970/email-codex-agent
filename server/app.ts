@@ -2,7 +2,8 @@ import express from "express";
 import cors from "cors";
 import type { Request, Response, NextFunction } from "express";
 import type { AppConfig } from "./config.js";
-import { getCodexVersion, type CodexAppServerClient } from "./codex/codex-client.js";
+import { getCodexVersion } from "./codex/codex-client.js";
+import type { CodexGateway } from "./codex/demo-codex-client.js";
 import type { MailGateway } from "./mail/types.js";
 import type { CodexStreamEvent, MailEvent, StatusResponse } from "../shared/types.js";
 import type { SseHub } from "./sse.js";
@@ -10,14 +11,14 @@ import type { SseHub } from "./sse.js";
 export type AppDeps = {
   config: AppConfig;
   mail: MailGateway;
-  codex: CodexAppServerClient;
+  codex: CodexGateway;
   mailHub: SseHub<MailEvent>;
   codexHub: SseHub<CodexStreamEvent>;
 };
 
 export function createApp(deps: AppDeps) {
   const app = express();
-  const codexVersionPromise = getCodexVersion();
+  const codexVersionPromise = deps.config.demoMode ? Promise.resolve("demo-codex") : getCodexVersion();
 
   app.use(cors());
   app.use(express.json({ limit: "4mb" }));

@@ -9,6 +9,7 @@ export type AppConfig = {
   agentMailInboxId?: string;
   agentMailProxyUrl?: string;
   blurEmailAddresses: boolean;
+  demoMode: boolean;
   mockMode: boolean;
   nodeEnv: string;
 };
@@ -20,6 +21,7 @@ export function loadConfig(): AppConfig {
     agentMailInboxId: emptyToUndefined(process.env.AGENTMAIL_INBOX_ID),
     agentMailProxyUrl: emptyToUndefined(process.env.AGENTMAIL_PROXY_URL) ?? "http://127.0.0.1:8118",
     blurEmailAddresses: booleanEnv(process.env.BLUR_EMAIL_ADDRESSES),
+    demoMode: booleanEnv(process.env.DEMO_MODE),
     mockMode: process.env.MOCK_MODE === "1" || process.env.MOCK_MODE === "true",
     nodeEnv: process.env.NODE_ENV ?? "development"
   };

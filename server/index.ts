@@ -6,6 +6,7 @@ import { createServer } from "node:http";
 import { createApp } from "./app.js";
 import { loadConfig } from "./config.js";
 import { CodexAppServerClient } from "./codex/codex-client.js";
+import { DemoCodexClient } from "./codex/demo-codex-client.js";
 import { createMailGateway } from "./mail/index.js";
 import { installFetchProxy } from "./proxy.js";
 import { SseHub } from "./sse.js";
@@ -21,12 +22,14 @@ async function main() {
   const mailHub = new SseHub<MailEvent>();
   const codexHub = new SseHub<CodexStreamEvent>();
   const mail = createMailGateway(config);
-  const codex = new CodexAppServerClient({
-    mail,
-    hub: codexHub,
-    agentMailApiKey: config.agentMailApiKey,
-    cwd: projectRoot
-  });
+  const codex = config.demoMode
+    ? new DemoCodexClient({ mail, hub: codexHub })
+    : new CodexAppServerClient({
+        mail,
+        hub: codexHub,
+        agentMailApiKey: config.agentMailApiKey,
+        cwd: projectRoot
+      });
 
   const app = createApp({ config, mail, codex, mailHub, codexHub });
 
