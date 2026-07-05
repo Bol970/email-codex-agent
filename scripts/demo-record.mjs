@@ -6,7 +6,7 @@ const port = Number.parseInt(process.env.DEMO_PORT ?? "5175", 10);
 const baseUrl = `http://127.0.0.1:${port}`;
 const headless = process.env.DEMO_HEADLESS === "1";
 const keepOpen = process.env.DEMO_KEEP_OPEN === "1" && process.env.DEMO_EXIT_ON_FINISH !== "1";
-const pace = Number.parseFloat(process.env.DEMO_PACE ?? "1");
+const pace = Number.parseFloat(process.env.DEMO_PACE ?? "0.6");
 const soundEnabled = process.env.DEMO_SOUND !== "0" && !headless;
 const windowPlacement = headless ? null : resolveWindowPlacement();
 const server = spawn(process.execPath, ["dist-server/server/index.js"], {
@@ -400,7 +400,7 @@ async function demoMoveTo(page, locator, options = {}) {
   };
 
   await playDemoSound(page, "move");
-  await moveDemoCursor(page, target.x, target.y, options.durationMs ?? 680);
+  await moveDemoCursor(page, target.x, target.y, scaledDuration(options.durationMs ?? 520));
   await page.waitForTimeout(scaledDuration(options.afterMs ?? 420));
 }
 
@@ -420,7 +420,7 @@ async function demoClick(page, locator, options = {}) {
   };
 
   await playDemoSound(page, "move");
-  await moveDemoCursor(page, target.x, target.y, options.durationMs ?? 680);
+  await moveDemoCursor(page, target.x, target.y, scaledDuration(options.durationMs ?? 520));
   await cursorPress(page);
   await playDemoSound(page, "click");
   await locator.click({ position: { x: Math.max(1, box.width * xRatio), y: Math.max(1, box.height * yRatio) } });
