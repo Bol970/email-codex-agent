@@ -1,11 +1,13 @@
-import { spawn } from "node:child_process";
+import { execFileSync, spawn } from "node:child_process";
 import process from "node:process";
 import { chromium } from "@playwright/test";
 
 const port = Number.parseInt(process.env.DEMO_PORT ?? "5175", 10);
 const baseUrl = `http://127.0.0.1:${port}`;
 const headless = process.env.DEMO_HEADLESS === "1";
-const exitOnFinish = process.env.DEMO_EXIT_ON_FINISH === "1";
+const keepOpen = process.env.DEMO_KEEP_OPEN === "1" && process.env.DEMO_EXIT_ON_FINISH !== "1";
+const pace = Number.parseFloat(process.env.DEMO_PACE ?? "1");
+const windowPlacement = headless ? null : resolveWindowPlacement();
 const server = spawn(process.execPath, ["dist-server/server/index.js"], {
   cwd: process.cwd(),
   env: {
@@ -35,7 +37,7 @@ process.on("exit", () => {
 await waitForStatus();
 browser = await chromium.launch({
   headless,
-  args: headless ? [] : ["--start-maximized"]
+  args: headless ? [] : browserLaunchArgs(windowPlacement)
 });
 const page = await browser.newPage({ viewport: headless ? { width: 1440, height: 920 } : null });
 await page.goto(baseUrl, { waitUntil: "domcontentloaded" });
@@ -46,23 +48,51 @@ await installDemoCursor(page);
 await caption(
   page,
   "Email Codex Agent: локальный email workspace с AgentMail и встроенным Codex.",
-  3500
+  14000
+);
+
+await demoMoveTo(page, page.getByPlaceholder("Search mail"), { afterMs: 800 });
+await caption(
+  page,
+  "Интерфейс устроен как рабочий почтовый клиент: слева inbox и фильтры, в центре список писем, справа агент Codex.",
+  16000
+);
+
+await demoMoveTo(page, pilotThread, { xRatio: 0.34, afterMs: 800 });
+await caption(
+  page,
+  "В demo-режиме здесь безопасные mock-письма. Это удобно для записи: реальные ключи, адреса и входящие не попадают в кадр.",
+  16000
 );
 
 await demoClick(page, pilotThread, { xRatio: 0.34 });
 await page.getByRole("article").getByText("Can you confirm the local agent").waitFor();
 await caption(
   page,
-  "Открываем входящее письмо. Здесь можно читать thread и вручную готовить ответ.",
-  3500
+  "Открываем входящее письмо. Основной сценарий остаётся привычным: прочитать thread, понять запрос и решить, что делать дальше.",
+  18000
+);
+
+await demoMoveTo(page, page.getByRole("button", { name: "Summarize", exact: true }), { afterMs: 800 });
+await caption(
+  page,
+  "Справа встроена панель Codex. Быстрые действия запускаются с выбранным письмом как контекстом, поэтому не нужно копировать текст вручную.",
+  18000
 );
 
 await demoClick(page, page.getByRole("button", { name: "Summarize", exact: true }));
 await page.getByText("Краткое резюме по письму").waitFor({ timeout: 10000 });
 await caption(
   page,
-  "Codex получает выбранный thread как контекст и кратко выделяет смысл письма и следующий шаг.",
-  4500
+  "Codex кратко выделяет смысл письма: кто написал, что просит отправитель, где риск и какой следующий шаг лучше выбрать.",
+  26000
+);
+
+await demoMoveTo(page, page.getByRole("button", { name: "Draft reply", exact: true }), { afterMs: 800 });
+await caption(
+  page,
+  "Следующий шаг — подготовить ответ. В первой версии агент работает по безопасной политике draft-first.",
+  16000
 );
 
 await demoClick(page, page.getByRole("button", { name: "Draft reply", exact: true }));
@@ -70,33 +100,148 @@ await page.getByText("Черновик создан в выбранном пис
 await page.getByText("Hi Maya,").waitFor({ timeout: 10000 });
 await caption(
   page,
-  "Draft-first policy: Codex подготовил черновик, но отправка остаётся только за пользователем.",
-  4500
+  "Черновик появился прямо в письме. Codex помог сформулировать ответ, но не получил права отправить его самостоятельно.",
+  26000
+);
+
+await demoMoveTo(page, page.getByRole("button", { name: "Send", exact: true }).first(), { afterMs: 800 });
+await caption(
+  page,
+  "Кнопка Send остаётся видимой, но необратимое действие делает только пользователь. Это ключевой guardrail сервиса.",
+  20000
 );
 
 await demoClick(page, page.getByPlaceholder("Write a reply"), { yRatio: 0.28 });
 await caption(
   page,
-  "Пользователь сохраняет контроль: можно написать ответ вручную, сохранить draft или вообще ничего не отправлять.",
-  4500
+  "Пользователь сохраняет полный контроль: можно отредактировать черновик, написать ответ вручную, сохранить draft или вообще ничего не отправлять.",
+  22000
 );
 
 await caption(
   page,
   "Итог: AgentMail отвечает за почту, Codex помогает с анализом и черновиками, а необратимые действия остаются под явным контролем.",
-  6500
+  24000
 );
 
-console.log("\nDemo autopilot finished. Keep recording if needed; press Ctrl+C here to close the demo browser and server.");
-if (exitOnFinish) {
-  await shutdown();
-  process.exit(0);
+await caption(
+  page,
+  "Презентация завершена. Сейчас demo browser закроется автоматически.",
+  7000
+);
+
+console.log("\nDemo autopilot finished. Closing the demo browser and server.");
+if (keepOpen) {
+  console.log("DEMO_KEEP_OPEN=1 is set; press Ctrl+C to close the demo browser and server.");
+  await new Promise((resolve) => {
+    process.once("SIGINT", resolve);
+    process.once("SIGTERM", resolve);
+  });
 }
-await new Promise((resolve) => {
-  process.once("SIGINT", resolve);
-  process.once("SIGTERM", resolve);
-});
 await shutdown();
+process.exit(0);
+
+function browserLaunchArgs(placement) {
+  if (!placement) return ["--start-maximized"];
+  console.log(
+    `Demo browser window: ${placement.width}x${placement.height}+${placement.x}+${placement.y}` +
+      (placement.label ? ` (${placement.label})` : "")
+  );
+  return [`--window-position=${placement.x},${placement.y}`, `--window-size=${placement.width},${placement.height}`];
+}
+
+function resolveWindowPlacement() {
+  const customPlacement = customWindowPlacement();
+  if (customPlacement) return customPlacement;
+
+  const monitors = readXrandrMonitors();
+  if (monitors.length === 0) return null;
+
+  const requested = process.env.DEMO_MONITOR ?? "2";
+  if (requested) {
+    const monitor = findRequestedMonitor(monitors, requested);
+    if (monitor) return monitorToPlacement(monitor);
+    if (process.env.DEMO_MONITOR) {
+      console.warn(`Demo monitor "${requested}" was not found; using automatic monitor selection.`);
+    }
+  }
+
+  const fallback = monitors.length > 1 ? monitors[1] : monitors[0];
+  return monitorToPlacement(fallback);
+}
+
+function customWindowPlacement() {
+  const x = optionalInt(process.env.DEMO_WINDOW_X);
+  const y = optionalInt(process.env.DEMO_WINDOW_Y);
+  if (x === undefined || y === undefined) return null;
+
+  return {
+    x,
+    y,
+    width: optionalInt(process.env.DEMO_WINDOW_WIDTH) ?? 1440,
+    height: optionalInt(process.env.DEMO_WINDOW_HEIGHT) ?? 920,
+    label: "custom"
+  };
+}
+
+function readXrandrMonitors() {
+  try {
+    const output = execFileSync("xrandr", ["--listmonitors"], { encoding: "utf8", timeout: 2500 });
+    return output
+      .split("\n")
+      .map((line) => line.match(/^\s*(\d+):\s+([+*]*)(\S+)\s+(\d+)\/\d+x(\d+)\/\d+\+(-?\d+)\+(-?\d+)\s+(.+)$/))
+      .filter(Boolean)
+      .map((match) => ({
+        index: Number(match[1]),
+        primary: match[2].includes("*"),
+        name: match[3],
+        width: Number(match[4]),
+        height: Number(match[5]),
+        x: Number(match[6]),
+        y: Number(match[7]),
+        output: match[8].trim()
+      }));
+  } catch {
+    return [];
+  }
+}
+
+function findRequestedMonitor(monitors, requested) {
+  const normalized = requested.trim().toLowerCase();
+  if (normalized === "primary") return monitors.find((monitor) => monitor.primary);
+
+  const requestedIndex = Number.parseInt(normalized, 10);
+  if (String(requestedIndex) === normalized) {
+    return monitors.find((monitor) => monitor.index === requestedIndex);
+  }
+
+  return monitors.find((monitor) => {
+    const name = monitor.name.toLowerCase();
+    const output = monitor.output.toLowerCase();
+    return name === normalized || output === normalized;
+  });
+}
+
+function monitorToPlacement(monitor) {
+  return {
+    x: monitor.x,
+    y: monitor.y,
+    width: optionalInt(process.env.DEMO_WINDOW_WIDTH) ?? monitor.width,
+    height: optionalInt(process.env.DEMO_WINDOW_HEIGHT) ?? monitor.height,
+    label: `${monitor.index}: ${monitor.output}${monitor.primary ? " primary" : ""}`
+  };
+}
+
+function optionalInt(value) {
+  if (!value) return undefined;
+  const parsed = Number.parseInt(value, 10);
+  return Number.isFinite(parsed) ? parsed : undefined;
+}
+
+function scaledDuration(durationMs) {
+  const multiplier = Number.isFinite(pace) && pace > 0 ? pace : 1;
+  return Math.max(1, Math.round(durationMs * multiplier));
+}
 
 async function caption(page, text, durationMs) {
   await page.evaluate((value) => {
@@ -127,13 +272,32 @@ async function caption(page, text, durationMs) {
     }
     node.textContent = value;
   }, text);
-  await page.waitForTimeout(durationMs);
+  await page.waitForTimeout(scaledDuration(durationMs));
+}
+
+async function demoMoveTo(page, locator, options = {}) {
+  await locator.waitFor({ state: "visible" });
+  await locator.scrollIntoViewIfNeeded();
+  await page.waitForTimeout(scaledDuration(120));
+
+  const box = await locator.boundingBox();
+  if (!box) throw new Error("Demo target is not visible");
+
+  const xRatio = options.xRatio ?? 0.5;
+  const yRatio = options.yRatio ?? 0.5;
+  const target = {
+    x: Math.round(box.x + box.width * xRatio + (options.offsetX ?? 0)),
+    y: Math.round(box.y + box.height * yRatio + (options.offsetY ?? 0))
+  };
+
+  await moveDemoCursor(page, target.x, target.y, options.durationMs ?? 680);
+  await page.waitForTimeout(scaledDuration(options.afterMs ?? 420));
 }
 
 async function demoClick(page, locator, options = {}) {
   await locator.waitFor({ state: "visible" });
   await locator.scrollIntoViewIfNeeded();
-  await page.waitForTimeout(120);
+  await page.waitForTimeout(scaledDuration(120));
 
   const box = await locator.boundingBox();
   if (!box) throw new Error("Demo target is not visible");
@@ -148,7 +312,7 @@ async function demoClick(page, locator, options = {}) {
   await moveDemoCursor(page, target.x, target.y, options.durationMs ?? 680);
   await cursorPress(page);
   await locator.click({ position: { x: Math.max(1, box.width * xRatio), y: Math.max(1, box.height * yRatio) } });
-  await page.waitForTimeout(options.afterMs ?? 420);
+  await page.waitForTimeout(scaledDuration(options.afterMs ?? 420));
 }
 
 async function installDemoCursor(page) {

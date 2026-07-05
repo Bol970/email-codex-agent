@@ -67,5 +67,9 @@ npm run start
 
 `npm run test:e2e` starts the local server in mock mode and runs Playwright on
 desktop and mobile viewports.
-`npm run demo:record` opens a headed browser, runs the short mock demo by itself,
-and keeps the browser open until you press `Ctrl+C`.
+`npm run demo:record` opens a headed browser, runs the longer mock presentation
+by itself, and closes the browser/server after the final title. On Linux/X11 it
+tries to open the demo browser on monitor `2` by default; override with
+`DEMO_MONITOR=0 npm run demo:record` or `DEMO_MONITOR=1 npm run demo:record`.
+Use `DEMO_KEEP_OPEN=1 npm run demo:record` only when you want the browser to
+stay open after the presentation.
