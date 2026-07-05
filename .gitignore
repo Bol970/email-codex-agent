@@ -1,0 +1,14 @@
+node_modules
+dist
+dist-server
+coverage
+playwright-report
+test-results
+.env*
+!.env.example
+.codex
+.agents
+skills-lock.json
+.cache
+.DS_Store
+*.log

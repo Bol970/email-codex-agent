@@ -1,0 +1,311 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 225 39% 91%;
+    --foreground: 224 32% 13%;
+    --card: 226 37% 85%;
+    --card-foreground: 224 32% 13%;
+    --popover: 226 39% 92%;
+    --popover-foreground: 224 32% 13%;
+    --primary: 224 33% 14%;
+    --primary-foreground: 43 100% 62%;
+    --secondary: 226 31% 77%;
+    --secondary-foreground: 224 30% 13%;
+    --muted: 226 27% 80%;
+    --muted-foreground: 222 21% 35%;
+    --accent: 43 100% 58%;
+    --accent-foreground: 24 74% 15%;
+    --destructive: 0 72% 48%;
+    --destructive-foreground: 0 0% 98%;
+    --warning: 43 98% 76%;
+    --warning-foreground: 27 72% 15%;
+    --warning-border: 38 90% 43%;
+    --info: 219 58% 88%;
+    --info-foreground: 222 49% 20%;
+    --info-border: 224 31% 58%;
+    --success: 159 44% 82%;
+    --success-foreground: 166 58% 15%;
+    --success-border: 160 33% 48%;
+    --border: 225 22% 50%;
+    --input: 225 22% 48%;
+    --ring: 43 100% 52%;
+    --radius: 0.5rem;
+    --chrome-highlight: 225 68% 97%;
+    --chrome-shadow: 226 22% 37%;
+    --carbon: 224 31% 12%;
+    --carbon-soft: 224 24% 19%;
+    --amber: 43 100% 58%;
+    --amber-soft: 43 100% 78%;
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+    min-height: 100dvh;
+    background:
+      linear-gradient(135deg, hsl(224 30% 15%) 0%, hsl(225 24% 26%) 44%, hsl(226 43% 82%) 100%),
+      hsl(var(--background));
+    font-family: Arial, Helvetica, sans-serif;
+    font-feature-settings:
+      "rlig" 1,
+      "calt" 1;
+  }
+
+  #root {
+    min-height: 100dvh;
+  }
+}
+
+@layer components {
+  .pane {
+    @apply min-w-0 border-r border-border bg-card;
+    background:
+      linear-gradient(90deg, hsl(var(--chrome-highlight) / 0.82), transparent 18%, hsl(var(--chrome-shadow) / 0.18) 100%),
+      repeating-linear-gradient(0deg, hsl(226 48% 90% / 0.42) 0, hsl(226 48% 90% / 0.42) 1px, transparent 1px, transparent 4px),
+      hsl(var(--card));
+    box-shadow:
+      inset 1px 0 0 hsl(var(--chrome-highlight) / 0.9),
+      inset -1px 0 0 hsl(var(--chrome-shadow) / 0.7);
+  }
+
+  .mail-grid {
+    display: grid;
+    grid-template-columns: 232px minmax(260px, 360px) minmax(420px, 1fr) minmax(320px, 420px);
+    height: 100dvh;
+    min-height: 0;
+    overflow: hidden;
+    border-top: 4px solid hsl(var(--amber));
+    background:
+      radial-gradient(circle at 1px 1px, hsl(var(--amber) / 0.26) 1px, transparent 1.3px) 0 0 / 8px 8px,
+      linear-gradient(180deg, hsl(var(--carbon)) 0, hsl(var(--carbon-soft)) 60px, hsl(var(--background)) 60px);
+  }
+
+  .mail-grid > * {
+    min-width: 0;
+    min-height: 0;
+  }
+
+  .agent-pane {
+    min-width: 0;
+    overflow: hidden;
+    background:
+      linear-gradient(90deg, hsl(var(--chrome-highlight) / 0.68), transparent 22%, hsl(var(--chrome-shadow) / 0.18)),
+      repeating-linear-gradient(0deg, hsl(226 46% 89% / 0.48) 0, hsl(226 46% 89% / 0.48) 1px, transparent 1px, transparent 5px),
+      hsl(var(--card));
+    box-shadow:
+      inset 1px 0 0 hsl(var(--chrome-highlight) / 0.85),
+      inset -1px 0 0 hsl(var(--chrome-shadow) / 0.78);
+  }
+
+  .console-sidebar {
+    color: hsl(44 100% 82%);
+    background:
+      radial-gradient(circle at 1px 1px, hsl(var(--amber) / 0.38) 1px, transparent 1.35px) 0 0 / 7px 7px,
+      linear-gradient(180deg, hsl(var(--carbon-soft)), hsl(var(--carbon)));
+    border-right-color: hsl(var(--amber) / 0.78);
+    box-shadow:
+      inset -1px 0 0 hsl(var(--amber) / 0.56),
+      inset 1px 0 0 hsl(0 0% 100% / 0.14);
+  }
+
+  .console-sidebar .text-muted-foreground {
+    color: hsl(43 64% 73%);
+  }
+
+  .console-sidebar button {
+    color: hsl(44 100% 84%);
+    border-color: hsl(var(--amber) / 0.18);
+  }
+
+  .console-sidebar button:hover,
+  .console-sidebar button[class*="bg-secondary"] {
+    color: hsl(var(--accent-foreground));
+    background: linear-gradient(180deg, hsl(var(--amber-soft)), hsl(var(--amber)));
+    border-color: hsl(var(--amber));
+    box-shadow:
+      inset 0 1px 0 hsl(0 0% 100% / 0.55),
+      0 1px 0 hsl(0 0% 0% / 0.45);
+  }
+
+  .console-mark {
+    color: hsl(var(--accent-foreground));
+    background:
+      linear-gradient(180deg, hsl(var(--amber-soft)), hsl(var(--amber)));
+    border: 1px solid hsl(38 96% 36%);
+    box-shadow:
+      inset 0 1px 0 hsl(0 0% 100% / 0.68),
+      0 1px 0 hsl(0 0% 0% / 0.42);
+  }
+
+  .console-title {
+    font-family: "Arial Black", Arial, Helvetica, sans-serif;
+    text-transform: uppercase;
+    color: hsl(var(--foreground));
+    text-shadow:
+      1px 1px 0 hsl(var(--chrome-highlight) / 0.85),
+      -1px -1px 0 hsl(var(--chrome-shadow) / 0.28);
+  }
+
+  .console-sidebar .console-title {
+    color: hsl(var(--amber-soft));
+    text-shadow:
+      1px 1px 0 hsl(0 0% 0% / 0.92),
+      -1px -1px 0 hsl(var(--amber) / 0.34);
+  }
+
+  .chrome-bar,
+  .chrome-dock {
+    background:
+      linear-gradient(180deg, hsl(var(--chrome-highlight) / 0.9), hsl(var(--card)) 44%, hsl(var(--chrome-shadow) / 0.18)),
+      repeating-linear-gradient(90deg, hsl(0 0% 100% / 0.22) 0, hsl(0 0% 100% / 0.22) 1px, transparent 1px, transparent 5px);
+  }
+
+  .thread-card,
+  .message-card,
+  .approval-card,
+  .draft-card {
+    box-shadow:
+      inset 1px 1px 0 hsl(var(--chrome-highlight) / 0.86),
+      inset -1px -1px 0 hsl(var(--chrome-shadow) / 0.42),
+      0 1px 0 hsl(0 0% 0% / 0.18);
+  }
+
+  .thread-card {
+    background:
+      linear-gradient(180deg, hsl(226 42% 91% / 0.9), hsl(226 31% 81% / 0.72));
+  }
+
+  .thread-card:hover,
+  .thread-card.thread-card--active {
+    border-color: hsl(var(--amber));
+    background:
+      linear-gradient(180deg, hsl(226 52% 94%), hsl(226 37% 82%)),
+      hsl(var(--card));
+  }
+
+  .unread-dot {
+    width: 0.5rem;
+    height: 0.5rem;
+    border-radius: 999px;
+    background: hsl(var(--amber));
+    border: 1px solid hsl(38 94% 40%);
+    box-shadow:
+      inset 0 1px 0 hsl(0 0% 100% / 0.72),
+      0 0 0 1px hsl(var(--amber) / 0.28),
+      0 0 8px hsl(var(--amber) / 0.38);
+  }
+
+  .message-card {
+    background:
+      linear-gradient(180deg, hsl(226 42% 96%), hsl(226 28% 88%));
+  }
+
+  .carbon-strip {
+    background:
+      radial-gradient(circle at 1px 1px, hsl(var(--amber) / 0.24) 1px, transparent 1.35px) 0 0 / 7px 7px,
+      linear-gradient(180deg, hsl(var(--carbon-soft)), hsl(var(--carbon)));
+    color: hsl(var(--amber-soft));
+  }
+
+  .agent-message {
+    color: hsl(44 100% 83%);
+    background:
+      radial-gradient(circle at 1px 1px, hsl(var(--amber) / 0.2) 1px, transparent 1.35px) 0 0 / 8px 8px,
+      linear-gradient(180deg, hsl(var(--carbon-soft)), hsl(var(--carbon)));
+    border: 1px solid hsl(var(--amber) / 0.45);
+    box-shadow: inset 0 1px 0 hsl(0 0% 100% / 0.12);
+  }
+
+  .mail-grid button {
+    box-shadow:
+      inset 0 1px 0 hsl(var(--chrome-highlight) / 0.7),
+      0 1px 0 hsl(0 0% 0% / 0.24);
+  }
+
+  .mail-grid button:disabled {
+    box-shadow: none;
+  }
+
+  .mail-grid input,
+  .mail-grid textarea {
+    color: hsl(var(--foreground));
+    background:
+      linear-gradient(180deg, hsl(226 45% 96%), hsl(226 30% 89%));
+    border-color: hsl(var(--input));
+    box-shadow:
+      inset 1px 1px 1px hsl(var(--chrome-shadow) / 0.34),
+      inset -1px -1px 0 hsl(var(--chrome-highlight) / 0.78);
+  }
+
+  .mail-grid input::placeholder,
+  .mail-grid textarea::placeholder {
+    color: hsl(224 20% 40%);
+  }
+
+  .mail-grid [role="tablist"] {
+    background:
+      linear-gradient(180deg, hsl(var(--carbon-soft)), hsl(var(--carbon)));
+    border: 1px solid hsl(var(--amber) / 0.34);
+    box-shadow: inset 0 1px 0 hsl(0 0% 100% / 0.12);
+  }
+
+  .mail-grid [role="tab"] {
+    color: hsl(var(--amber-soft));
+  }
+
+  .mail-grid [role="tab"][data-state="active"] {
+    color: hsl(var(--accent-foreground));
+    background:
+      linear-gradient(180deg, hsl(var(--amber-soft)), hsl(var(--amber)));
+  }
+
+  .label-badge {
+    color: hsl(var(--accent-foreground));
+    background:
+      linear-gradient(180deg, hsl(var(--amber-soft)), hsl(var(--amber)));
+    border-color: hsl(38 94% 40%);
+    box-shadow:
+      inset 0 1px 0 hsl(0 0% 100% / 0.6),
+      0 1px 0 hsl(0 0% 0% / 0.18);
+  }
+
+  @media (min-width: 1181px) {
+    body,
+    #root {
+      height: 100dvh;
+      overflow: hidden;
+    }
+  }
+
+  @media (max-width: 1180px) {
+    .mail-grid {
+      grid-template-columns: 220px minmax(260px, 340px) minmax(420px, 1fr);
+      height: auto;
+      min-height: 100dvh;
+      overflow: visible;
+    }
+
+    .agent-pane {
+      grid-column: 1 / -1;
+      border-top: 1px solid hsl(var(--border));
+      min-height: 360px;
+    }
+  }
+
+  @media (max-width: 820px) {
+    .mail-grid {
+      grid-template-columns: 1fr;
+    }
+
+    .pane {
+      border-right: 0;
+      border-bottom: 1px solid hsl(var(--border));
+    }
+  }
+}
