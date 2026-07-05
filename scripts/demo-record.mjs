@@ -39,7 +39,9 @@ browser = await chromium.launch({
 });
 const page = await browser.newPage({ viewport: headless ? { width: 1440, height: 920 } : null });
 await page.goto(baseUrl, { waitUntil: "domcontentloaded" });
-await page.getByRole("button", { name: /Pilot inbox: launch checklist/ }).waitFor();
+const pilotThread = page.getByRole("button", { name: /Pilot inbox: launch checklist/ });
+await pilotThread.waitFor();
+await installDemoCursor(page);
 
 await caption(
   page,
@@ -47,7 +49,7 @@ await caption(
   3500
 );
 
-await page.getByRole("button", { name: /Pilot inbox: launch checklist/ }).click();
+await demoClick(page, pilotThread, { xRatio: 0.34 });
 await page.getByRole("article").getByText("Can you confirm the local agent").waitFor();
 await caption(
   page,
@@ -55,7 +57,7 @@ await caption(
   3500
 );
 
-await page.getByRole("button", { name: "Summarize", exact: true }).click();
+await demoClick(page, page.getByRole("button", { name: "Summarize", exact: true }));
 await page.getByText("Краткое резюме по письму").waitFor({ timeout: 10000 });
 await caption(
   page,
@@ -63,7 +65,7 @@ await caption(
   4500
 );
 
-await page.getByRole("button", { name: "Draft reply", exact: true }).click();
+await demoClick(page, page.getByRole("button", { name: "Draft reply", exact: true }));
 await page.getByText("Черновик создан в выбранном письме.").waitFor({ timeout: 10000 });
 await page.getByText("Hi Maya,").waitFor({ timeout: 10000 });
 await caption(
@@ -72,7 +74,7 @@ await caption(
   4500
 );
 
-await page.getByPlaceholder("Write a reply").click();
+await demoClick(page, page.getByPlaceholder("Write a reply"), { yRatio: 0.28 });
 await caption(
   page,
   "Пользователь сохраняет контроль: можно написать ответ вручную, сохранить draft или вообще ничего не отправлять.",
@@ -126,6 +128,171 @@ async function caption(page, text, durationMs) {
     node.textContent = value;
   }, text);
   await page.waitForTimeout(durationMs);
+}
+
+async function demoClick(page, locator, options = {}) {
+  await locator.waitFor({ state: "visible" });
+  await locator.scrollIntoViewIfNeeded();
+  await page.waitForTimeout(120);
+
+  const box = await locator.boundingBox();
+  if (!box) throw new Error("Demo target is not visible");
+
+  const xRatio = options.xRatio ?? 0.5;
+  const yRatio = options.yRatio ?? 0.5;
+  const target = {
+    x: Math.round(box.x + box.width * xRatio + (options.offsetX ?? 0)),
+    y: Math.round(box.y + box.height * yRatio + (options.offsetY ?? 0))
+  };
+
+  await moveDemoCursor(page, target.x, target.y, options.durationMs ?? 680);
+  await cursorPress(page);
+  await locator.click({ position: { x: Math.max(1, box.width * xRatio), y: Math.max(1, box.height * yRatio) } });
+  await page.waitForTimeout(options.afterMs ?? 420);
+}
+
+async function installDemoCursor(page) {
+  await page.evaluate(() => {
+    if (!document.querySelector("[data-demo-cursor-style]")) {
+      const style = document.createElement("style");
+      style.setAttribute("data-demo-cursor-style", "true");
+      style.textContent = `
+        [data-demo-cursor] {
+          position: fixed;
+          left: 0;
+          top: 0;
+          width: 0;
+          height: 0;
+          z-index: 2147483646;
+          pointer-events: none;
+          transform: translate3d(96px, 120px, 0);
+          will-change: transform;
+        }
+
+        [data-demo-cursor]::before {
+          content: "";
+          position: absolute;
+          left: 0;
+          top: 0;
+          width: 28px;
+          height: 34px;
+          clip-path: polygon(0 0, 0 29px, 8px 22px, 14px 34px, 20px 31px, 14px 20px, 27px 20px);
+          background: rgb(248, 251, 255);
+          filter:
+            drop-shadow(1px 1px 0 rgb(31, 43, 68))
+            drop-shadow(-1px -1px 0 rgb(31, 43, 68))
+            drop-shadow(0 4px 5px rgba(0, 0, 0, 0.38));
+        }
+
+        [data-demo-cursor]::after {
+          content: "";
+          position: absolute;
+          left: 17px;
+          top: 17px;
+          width: 12px;
+          height: 12px;
+          border: 2px solid rgba(255, 190, 56, 0.95);
+          border-radius: 999px;
+          background: rgba(255, 190, 56, 0.28);
+          opacity: 0;
+          transform: translate(-50%, -50%) scale(0.38);
+        }
+
+        [data-demo-cursor].is-clicking::after {
+          animation: demo-cursor-pulse 420ms ease-out;
+        }
+
+        @keyframes demo-cursor-pulse {
+          0% {
+            opacity: 0.95;
+            transform: translate(-50%, -50%) scale(0.38);
+          }
+          100% {
+            opacity: 0;
+            transform: translate(-50%, -50%) scale(3);
+          }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+          [data-demo-cursor].is-clicking::after {
+            animation-duration: 1ms;
+          }
+        }
+      `;
+      document.head.appendChild(style);
+    }
+
+    if (!document.querySelector("[data-demo-cursor]")) {
+      const cursor = document.createElement("div");
+      cursor.setAttribute("data-demo-cursor", "true");
+      cursor.setAttribute("aria-hidden", "true");
+      cursor.dataset.x = "96";
+      cursor.dataset.y = "120";
+      document.body.appendChild(cursor);
+    }
+  });
+}
+
+async function moveDemoCursor(page, x, y, durationMs) {
+  await page.evaluate(
+    ({ x, y, durationMs }) =>
+      new Promise((resolve) => {
+        const cursor = document.querySelector("[data-demo-cursor]");
+        if (!cursor) {
+          resolve();
+          return;
+        }
+
+        const startX = Number(cursor.dataset.x ?? x);
+        const startY = Number(cursor.dataset.y ?? y);
+        const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+        const duration = reducedMotion ? 1 : durationMs;
+        const start = performance.now();
+        const easeOutQuart = (value) => 1 - Math.pow(1 - value, 4);
+
+        const render = (now) => {
+          const progress = Math.min(1, (now - start) / duration);
+          const eased = easeOutQuart(progress);
+          const currentX = startX + (x - startX) * eased;
+          const currentY = startY + (y - startY) * eased;
+          cursor.style.transform = `translate3d(${currentX}px, ${currentY}px, 0)`;
+
+          if (progress < 1) {
+            window.requestAnimationFrame(render);
+            return;
+          }
+
+          cursor.dataset.x = String(x);
+          cursor.dataset.y = String(y);
+          resolve();
+        };
+
+        window.requestAnimationFrame(render);
+      }),
+    { x, y, durationMs }
+  );
+  await page.mouse.move(x, y).catch(() => undefined);
+}
+
+async function cursorPress(page) {
+  await page.evaluate(
+    () =>
+      new Promise((resolve) => {
+        const cursor = document.querySelector("[data-demo-cursor]");
+        if (!cursor) {
+          resolve();
+          return;
+        }
+
+        cursor.classList.remove("is-clicking");
+        void cursor.getBoundingClientRect();
+        cursor.classList.add("is-clicking");
+        window.setTimeout(() => {
+          cursor.classList.remove("is-clicking");
+          resolve();
+        }, 420);
+      })
+  );
 }
 
 async function waitForStatus() {
